@@ -479,7 +479,7 @@ loadGSTimesheets = function () {
     rowNo += parseInt((date.getTime()-date.getTimezoneOffset()*60*1000)/(1000*24*60*60)) - parseInt((s.getTime()-s.getTimezoneOffset()*60*1000)/(1000*24*60*60));
     if (typeof withDateline != 'undefined' && withDateline === true) {
       var dateline = this.settings.get("日付変更時");
-      rowNo += ((date.getHours() - date.getTimezoneOffset()) > parseInt(dateline)) ? 0 : -1;
+      rowNo += (date.getHours() > parseInt(dateline)) ? 0 : -1;
     }
     return rowNo;
   };
@@ -494,12 +494,13 @@ loadGSTimesheets = function () {
     return({ user: username, date: row[0], signIn: row[1], signOut: row[2], note: row[3] });
   };
 
-  GSTimesheets.prototype.set = function(username, date, params) {
+    GSTimesheets.prototype.set = function(username, date, params, isSignOut) {
+    var isSignOut = (typeof isSignOut != 'undefined' || isSignOut === true) ? true : false;
     var sheet = this._getSheet(username);
     var rowNo = this._getRowNo(username, date);
     var rowNoSignOut = this._getRowNo(username, date, true);
 
-    if (rowNo == rowNoSignOut) {
+    if (!isSignOut || rowNo == rowNoSignOut) {
       var row = this.get(username, date);
       _.extend(row, _.pick(params, 'signIn', 'signOut', 'note'));
       var data = [DateUtils.toDate(date), row.signIn, row.signOut, row.note].map(function(v) {
@@ -507,13 +508,13 @@ loadGSTimesheets = function () {
       });
       sheet.getRange("A"+rowNo+":"+String.fromCharCode(65 + this.scheme.columns.length - 1)+rowNo).setValues([data]);
     } else {
-      date = new Date(date.getTime()-date.getTimezoneOffset()*60*1000-60*60*24*1000);
+      date = new Date(date.getTime()-60*60*24*1000);
       var row = this.get(username, date);
       _.extend(row, _.pick(params, 'signIn', 'signOut', 'note'));
       var data = [DateUtils.toDate(date), row.signIn, row.signOut, row.note].map(function(v) {
         return v == null ? '' : v;
       });
-      sheet.getRange("A"+rowNoSignOut+":"+String.fromCharCode(65 + this.scheme.columns.length - 1)+rowNo).setValues([data]);
+      sheet.getRange("A"+rowNoSignOut+":"+String.fromCharCode(65 + this.scheme.columns.length - 1)+rowNoSignOut).setValues([data]);
     }
     return row;
   };
@@ -795,13 +796,13 @@ loadTimesheets = function (exports) {
     if(this.datetime) {
       var data = this.storage.get(username, this.datetime);
       if(!data.signOut || data.signOut === '-') {
-        this.storage.set(username, this.datetime, {signOut: this.datetime});
+        this.storage.set(username, this.datetime, {signOut: this.datetime}, true);
         this.responder.template("退勤", username, this.datetimeStr);
       }
       else {
         // 更新の場合は時間を明示する必要がある
         if(!!this.time) {
-          this.storage.set(username, this.datetime, {signOut: this.datetime});
+          this.storage.set(username, this.datetime, {signOut: this.datetime}, true);
           this.responder.template("退勤更新", username, this.datetimeStr);
         }
       }
