@@ -76,12 +76,13 @@ loadGSTimesheets = function () {
     return({ user: username, date: row[0], signIn: row[1], signOut: row[2], note: row[3] });
   };
 
-  GSTimesheets.prototype.set = function(username, date, params) {
+    GSTimesheets.prototype.set = function(username, date, params, isSignOut) {
+    var isSignOut = (typeof isSignOut != 'undefined' || isSignOut === true) ? true : false;
     var sheet = this._getSheet(username);
     var rowNo = this._getRowNo(username, date);
     var rowNoSignOut = this._getRowNo(username, date, true);
 
-    if (rowNo == rowNoSignOut) {
+    if (!isSignOut || rowNo == rowNoSignOut) {
       var row = this.get(username, date);
       _.extend(row, _.pick(params, 'signIn', 'signOut', 'note'));
       var data = [DateUtils.toDate(date), row.signIn, row.signOut, row.note].map(function(v) {
